@@ -1,0 +1,5 @@
+User-agent: *
+Allow: /
+Disallow: /ph/
+
+Sitemap: https://docs.paqett.com/sitemap.xml
