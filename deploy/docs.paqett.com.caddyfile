@@ -1,0 +1,30 @@
+# One file per site; deploy/deploy.sh installs it into the main Caddy's sites directory and reloads.
+# Caddy and the docs container share the external docker network `caddy_edge`, where the docs answer
+# as `paqett-docs:8080` (deploy/compose.yaml).
+docs.paqett.com {
+	encode zstd gzip
+
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		-Server
+	}
+
+	# PostHog (EU), first-party so blockers don't drop it: src/hooks.client.ts posts to /ph.
+	handle /ph/static/* {
+		uri strip_prefix /ph
+		reverse_proxy https://eu-assets.i.posthog.com {
+			header_up Host eu-assets.i.posthog.com
+		}
+	}
+	handle_path /ph/* {
+		reverse_proxy https://eu.i.posthog.com {
+			header_up Host eu.i.posthog.com
+		}
+	}
+
+	handle {
+		reverse_proxy paqett-docs:8080
+	}
+}

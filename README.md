@@ -1,7 +1,7 @@
 # paqett-docs
 
 [docs.paqett.com](https://docs.paqett.com): developer documentation for the Paqett platform. SvelteKit + mdsvex, every
-page prerendered, deployed by Vercel from `main`.
+page prerendered to plain files, served from the Paqett box.
 
 ## Pages
 
@@ -43,7 +43,8 @@ Search Console property.
 
 ## Analytics
 
-Cookieless PostHog, the same project as www.paqett.com (`src/hooks.client.ts`), proxied through `/ph` (`vercel.json`).
+Cookieless PostHog, the same project as www.paqett.com (`src/hooks.client.ts`), proxied through `/ph` by the box's
+Caddy (`deploy/docs.paqett.com.caddyfile`).
 It reports only from `docs.paqett.com`; open any page with `?internal=1` to tag your own visits.
 
 ## Develop
@@ -53,3 +54,17 @@ pnpm install
 pnpm dev
 pnpm check && pnpm build
 ```
+
+## Deploy
+
+```sh
+deploy/deploy.sh    # build, rsync build/ to udb-hetzner:/opt/paqett-docs/site, done
+```
+
+- `adapter-static` writes plain files to `build/`; `404.html` is the not-found page.
+- On the box, `paqett-docs` (`deploy/compose.yaml`) is a small read-only Caddy container serving
+  `/opt/paqett-docs/site` on `caddy_edge:8080`. A content change is just new files; nothing restarts.
+- The box's main Caddy terminates TLS for docs.paqett.com, adds the security headers and proxies `/ph` to PostHog
+  (`deploy/docs.paqett.com.caddyfile`, installed as `/opt/universitydb/caddy/sites/docs-paqett.caddyfile`). The script
+  reloads it only when that block changes and only after `caddy validate` passes; otherwise it restores the old block.
+- DNS: `docs` A 91.99.5.190, AAAA 2a01:4f8:c015:adcc::1 (Namecheap).
