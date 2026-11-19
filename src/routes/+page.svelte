@@ -1,15 +1,25 @@
 <script lang="ts">
 	import Seo, { SITE } from '$lib/Seo.svelte';
 	import { LISTED, SECTIONS } from '$lib/content';
+	import { AUTHOR, ORGANISATION } from '$lib/schema';
 
-	const site = {
-		'@context': 'https://schema.org',
-		'@type': 'WebSite',
-		name: 'Paqett docs',
-		url: `${SITE}/`,
-		inLanguage: 'en-GB',
-		publisher: { '@type': 'Organization', name: 'Paqett', url: 'https://www.paqett.com/' }
-	};
+	const site = [
+		{
+			'@context': 'https://schema.org',
+			'@type': 'WebSite',
+			'@id': `${SITE}/#website`,
+			name: 'Paqett docs',
+			alternateName: 'Paqett developer documentation',
+			url: `${SITE}/`,
+			inLanguage: 'en-GB',
+			description:
+				'Developer documentation for Paqett: ESP32 X.509 self-provisioning, MQTT over mutual TLS and OTA firmware updates with rollback.',
+			publisher: { '@id': ORGANISATION['@id'] },
+			hasPart: LISTED.map((d) => ({ '@type': 'TechArticle', name: d.title, url: SITE + d.path }))
+		},
+		{ '@context': 'https://schema.org', ...ORGANISATION },
+		{ '@context': 'https://schema.org', ...AUTHOR }
+	];
 </script>
 
 <Seo

@@ -2,10 +2,12 @@
 title: "ESP32 MQTT over mutual TLS with an X.509 client certificate"
 nav: "ESP32: MQTT over mutual TLS"
 description: "Give an ESP32 its own P-256 key, build a CSR with mbedTLS, enrol for an X.509 client certificate and connect esp-mqtt to MQTT over mutual TLS."
+tldr: "An ESP32 authenticates to an MQTT broker with mutual TLS by generating an EC P-256 key with mbedTLS, sending a CSR to get an X.509 client certificate, keeping key, certificate and CA in NVS, and passing all three to esp-mqtt. The broker verifies the device's certificate; the device verifies the broker against the CA."
 section: guides
 order: 1
 updated: 2026-11-19
 keywords: [esp32 mqtt tls, esp32 mutual tls, esp32 x509 client certificate, esp-mqtt client certificate, mbedtls csr esp32]
+about: [esp32, mqtt, x509, mtls, mbedtls, csr, nvs, esp-idf]
 ---
 
 By the end of this guide your ESP32 makes its own EC P-256 key, sends a certificate signing request to the Paqett platform and gets back an X.509 client certificate. It then connects to the Paqett MQTT broker over mutual TLS with esp-mqtt, announces itself and listens for commands. No password or shared secret ever reaches the device.
@@ -361,9 +363,12 @@ esp-mqtt reports these as `MQTT_EVENT_ERROR` with `error_type == MQTT_ERROR_TYPE
 case MQTT_EVENT_ERROR: {
     const esp_mqtt_error_codes_t* ec = e->error_handle;
     if (ec->error_type == MQTT_ERROR_TYPE_TCP_TRANSPORT) {
+        // esp-tls stores the mbedTLS code negated: 0x2700 here means -0x2700.
         ESP_LOGW(TAG, "transport esp=%s tls=-0x%04x verify_flags=0x%x errno=%d",
-                 esp_err_to_name(ec->esp_tls_last_esp_err), (unsigned)-ec->esp_tls_stack_err,
+                 esp_err_to_name(ec->esp_tls_last_esp_err), (unsigned)ec->esp_tls_stack_err,
                  (unsigned)ec->esp_tls_cert_verify_flags, ec->esp_transport_sock_errno);
+        // Compare with the negated constant, e.g.
+        // ec->esp_tls_stack_err == -MBEDTLS_ERR_SSL_FATAL_ALERT_MESSAGE
     } else if (ec->error_type == MQTT_ERROR_TYPE_CONNECTION_REFUSED) {
         ESP_LOGW(TAG, "CONNACK refused, return code %d", (int)ec->connect_return_code);
     }
@@ -416,3 +421,12 @@ No. The certificate's CN is one device id. The broker uses it as the client id, 
 - [Provisioning API](/devices/provisioning): every field, rule and error of `POST /v1/devices/provision`.
 - [MQTT topics](/devices/mqtt-topics): the full topic map under `devices/<id>/`.
 - [ESP32 OTA updates over MQTT](/guides/esp32-ota-updates-over-mqtt): the next guide. Use this same mutual TLS session to deliver firmware.
+
+## Sources
+
+- [ESP-IDF: ESP-MQTT](https://docs.espressif.com/projects/esp-idf/en/stable/esp32/api-reference/protocols/mqtt.html): esp-mqtt configuration, including client certificate and key.
+- [ESP-IDF: ESP-TLS](https://docs.espressif.com/projects/esp-idf/en/stable/esp32/api-reference/protocols/esp_tls.html): the TLS layer under esp-mqtt and esp_http_client, and its error reporting.
+- [ESP-IDF: Non-Volatile Storage Library](https://docs.espressif.com/projects/esp-idf/en/stable/esp32/api-reference/storage/nvs_flash.html): where the key and certificates are kept, and NVS encryption.
+- [ESP-IDF: Random Number Generation](https://docs.espressif.com/projects/esp-idf/en/stable/esp32/api-reference/system/random.html): when the hardware RNG produces true random numbers.
+- [RFC 2986: PKCS #10 Certification Request Syntax](https://www.rfc-editor.org/rfc/rfc2986): the CSR format a device sends to enrol.
+- [Mbed TLS (GitHub)](https://github.com/Mbed-TLS/mbedtls): the TLS and X.509 library ESP-IDF uses for keys, CSRs and handshakes.

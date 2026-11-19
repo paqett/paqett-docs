@@ -2,9 +2,11 @@
 title: "MQTT topics and payloads for Paqett devices"
 nav: "MQTT topics"
 description: "The MQTT topics a Paqett device publishes and subscribes to over mutual TLS: status, hello, commands and OTA, with payloads, QoS and retain flags."
+tldr: "A Paqett device connects to mqtt.paqett.com:8883 with its client certificate and may only use topics under devices/ plus its device id. It publishes a retained status and a hello on every connect, answers commands on cmd/name via cmd_ack, receives retained OTA offers on ota and reports progress on ota_status."
 order: 3
 updated: 2026-11-19
 keywords: [mqtt topic structure iot, mqtt last will retained status, mqtt device commands, mqtt acl per device, mqtt topics esp32]
+about: [mqtt, mtls, tls]
 ---
 
 A device connects to `mqtt.paqett.com:8883` with its client certificate. The broker takes the device id from the certificate's common name and uses it as the MQTT username and client id, whatever the client sends. The device may then publish and subscribe under `devices/<device id>/` and nowhere else.
@@ -74,3 +76,27 @@ A command the device does not know is answered too, so the platform is never lef
 ## Disconnecting cleanly
 
 Before a planned disconnect (a reboot into new firmware, say), publish `{"online":false}` to `status` yourself, retained. The broker only sends the will when a connection drops without a clean disconnect.
+
+## FAQ
+
+### Which port does Paqett MQTT use?
+
+Port 8883, MQTT over TLS, at mqtt.paqett.com. Devices authenticate with their client certificate during the TLS handshake.
+
+### Do I need an MQTT username and password?
+
+No. The broker takes the MQTT username and client id from the common name of the device's certificate, whatever the client sends.
+
+### What happens if a device publishes outside its own topic prefix?
+
+The broker's ACL lets a device use only topics under its own prefix, so the publish or subscribe is refused. Build every topic from the topic_prefix the provisioning response returned.
+
+### Why is the status topic retained?
+
+So any subscriber that connects later sees the device's last state straight away. The broker's last will publishes a retained offline status when the connection drops without a clean disconnect.
+
+## Sources
+
+- [MQTT Version 3.1.1 (OASIS Standard)](https://docs.oasis-open.org/mqtt/mqtt/v3.1.1/mqtt-v3.1.1.html): retained messages, last will, QoS 1 and topic filters.
+- [MQTT Version 5.0 (OASIS Standard)](https://docs.oasis-open.org/mqtt/mqtt/v5.0/mqtt-v5.0.html): the current MQTT specification, including CONNACK reason codes.
+- [IANA Service Name and Port Number Registry: 8883](https://www.iana.org/assignments/service-names-port-numbers/service-names-port-numbers.xhtml?search=8883): port 8883 registered for MQTT over TLS.

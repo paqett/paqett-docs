@@ -15,7 +15,7 @@ mkdirSync(outDir, { recursive: true });
 mkdirSync(work, { recursive: true });
 
 const wordmark = readFileSync(join(root, 'src/lib/assets/paqett-wordmark.svg'), 'utf8');
-const SECTION = { guides: 'Guide', devices: 'Device reference' };
+const SECTION = { guides: 'Guide', learn: 'Concepts', devices: 'Device reference' };
 
 /** The quoted or plain value of `key:` in a Markdown file's frontmatter. */
 function front(src, key) {
@@ -28,7 +28,8 @@ const esc = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;');
 const pages = [
 	{ slug: 'home', kicker: 'Paqett docs', title: 'Connect a device. Keep it updated.' },
 	{ slug: 'guides', kicker: 'Paqett docs', title: 'Guides: ESP32 MQTT, mutual TLS and OTA' },
-	{ slug: 'devices', kicker: 'Paqett docs', title: 'Device reference: provisioning, MQTT topics and OTA' }
+	{ slug: 'devices', kicker: 'Paqett docs', title: 'Device reference: provisioning, MQTT topics and OTA' },
+	{ slug: 'learn', kicker: 'Paqett docs', title: 'Concepts: MQTT mutual TLS, device certificates and provisioning' }
 ];
 for (const section of Object.keys(SECTION)) {
 	for (const file of readdirSync(join(root, 'src/content', section))) {
