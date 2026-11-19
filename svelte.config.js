@@ -1,4 +1,4 @@
-import adapter from '@sveltejs/adapter-vercel';
+import adapter from '@sveltejs/adapter-static';
 import { vitePreprocess } from '@sveltejs/vite-plugin-svelte';
 import { mdsvex } from 'mdsvex';
 import GithubSlugger from 'github-slugger';
@@ -63,7 +63,9 @@ const config = {
 		})
 	],
 	kit: {
-		adapter: adapter(),
+		// Plain files in build/, served from the Paqett box (deploy/). 404.html is the
+		// not-found page: the client router renders +error.svelte for any unknown path.
+		adapter: adapter({ pages: 'build', assets: 'build', fallback: '404.html', strict: true }),
 		prerender: {
 			handleHttpError: 'fail',
 			handleMissingId: 'fail'
