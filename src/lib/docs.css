@@ -239,6 +239,38 @@ a:hover {
 .meta {
 	margin: 18px 0 0;
 	color: var(--ink-3);
+	line-height: 1.6;
+}
+.meta a {
+	color: var(--ink-2);
+	text-decoration: none;
+}
+.meta a:hover {
+	color: var(--violet);
+}
+.tldr {
+	margin: 20px 0 0;
+	padding: 16px 20px;
+	border-left: 3px solid var(--violet);
+	border-radius: 0 8px 8px 0;
+	background: var(--violet-soft);
+}
+.tldr .tag {
+	margin: 0 0 6px;
+	color: var(--violet);
+}
+.tldr p:last-child {
+	margin: 0;
+	font-size: 18px;
+	line-height: 1.55;
+}
+.related {
+	margin-top: 56px;
+}
+.related h2 {
+	margin: 0 0 14px;
+	font-size: 22px;
+	font-weight: 600;
 }
 .actions {
 	display: flex;

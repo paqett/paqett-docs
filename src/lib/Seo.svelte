@@ -20,8 +20,11 @@
 		crumbs = [],
 		modified,
 		keywords = [],
+		markdown,
 		noindex = false
 	}: {
+		/** Path of the page's Markdown twin, for LLM crawlers. */
+		markdown?: string;
 		title: string;
 		description: string;
 		path: string;
@@ -70,6 +73,9 @@
 		content={noindex ? 'noindex, nofollow' : 'index, follow, max-image-preview:large, max-snippet:-1'}
 	/>
 	<meta name="theme-color" content="#8800ff" />
+	<meta name="author" content="Alessio Grespi, Paqett" />
+	{#if markdown}<link rel="alternate" type="text/markdown" href="{SITE}{markdown}" />{/if}
+	<link rel="alternate" type="text/plain" title="llms.txt" href="{SITE}/llms.txt" />
 
 	<meta property="og:type" content={type} />
 	<meta property="og:site_name" content="Paqett docs" />
@@ -82,7 +88,11 @@
 	<meta property="og:image:height" content="630" />
 	{#if type === 'article' && modified}
 		<meta property="article:modified_time" content={modified} />
+		<meta property="article:author" content="https://www.alessio.london/" />
+		{#each keywords.slice(0, 6) as k (k)}<meta property="article:tag" content={k} />{/each}
 	{/if}
+	<meta name="twitter:label1" content="Written by" />
+	<meta name="twitter:data1" content="Alessio Grespi" />
 
 	<meta name="twitter:card" content="summary_large_image" />
 	<meta name="twitter:title" content={title} />

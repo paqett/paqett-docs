@@ -8,3 +8,5 @@ build
 .DS_Store
 .claude/worktrees
 .playwright-mcp
+.indexnow-hashes
+.indexnow-hashes.new

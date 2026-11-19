@@ -2,9 +2,11 @@
 title: "Provisioning API: enrol a device for an X.509 certificate"
 nav: "Provisioning API"
 description: "POST /v1/devices/provision turns a device's CSR into an X.509 client certificate for MQTT over mutual TLS. Fields, responses, errors and re-keying."
+tldr: "POST https://api.paqett.com/v1/devices/provision with a project key that has the devices:provision scope and a JSON body of hardware_id, model, firmware and an EC P-256 CSR. The response carries the device id, a five-year client certificate, the CA, the MQTT host and the topic prefix. Re-provisioning must use the same key."
 order: 2
 updated: 2026-11-19
 keywords: [iot device provisioning api, csr to certificate api, x509 client certificate api, device enrolment, certificate signing request iot]
+about: [csr, x509, pki, ecc, mtls]
 ---
 
 A device enrols by sending a certificate signing request (CSR) for its own key. The platform answers with a client certificate for the Paqett MQTT broker, the CA that signed it, and where to connect.
@@ -98,3 +100,31 @@ Revoking a device in the console revokes every live certificate it holds and dis
 > **Note:** Revoking clears the key pin, which is what makes re-keying possible. It also means a revoked device that still holds the project's provisioning key can enrol again. To keep a device out for good, rotate the provisioning key as well: devices already enrolled keep connecting, and new devices ship with the new key.
 
 If the broker cannot reach the platform to check a certificate, it refuses the connection (MQTT CONNACK `not authorised`) rather than letting it through. Devices retry with their back-off and get in once the check answers again; devices already connected are not affected.
+
+## FAQ
+
+### Can I send an RSA certificate signing request?
+
+No. The CSR must be for an EC P-256 (secp256r1) key and signed with ECDSA-SHA256. Anything else is rejected with 400 and an error that starts with csr_pem.
+
+### How long is a Paqett device certificate valid?
+
+Five years from issue, backdated five minutes to allow for clock skew. The exact expiry is in cert_not_after. Renew by enrolling again with the same key before then: the device keeps its device id.
+
+### Why does provisioning return 409 Conflict?
+
+Either the device already holds a live certificate for a different public key, because re-provisioning is pinned to the original key, or its hardware_id is registered to another project. Revoke the device's certificates in the console to re-key it, or enrol it with the other project's key.
+
+### Does the CSR subject matter?
+
+No. The platform ignores the subject of the request and sets the certificate's common name to the device id itself.
+
+### Is the provisioning response secret?
+
+No. It contains the device's certificate and the CA certificate, both of which are public. The private key never appears in any request or response.
+
+## Sources
+
+- [RFC 2986: PKCS #10 Certification Request Syntax](https://www.rfc-editor.org/rfc/rfc2986): the CSR format a device sends to enrol.
+- [RFC 5280: Internet X.509 Public Key Infrastructure Certificate and CRL Profile](https://www.rfc-editor.org/rfc/rfc5280): the X.509 certificate format the device and broker certificates follow.
+- [Mbed TLS (GitHub)](https://github.com/Mbed-TLS/mbedtls): the TLS and X.509 library ESP-IDF uses for keys, CSRs and handshakes.

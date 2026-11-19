@@ -2,9 +2,11 @@
 title: "OTA updates: offers, downloads, status and rollback"
 nav: "OTA updates"
 description: "The OTA contract for Paqett IP devices: the retained MQTT offer, the signed HTTPS image URL, the device's rules, ota_status reports, jobs and releases."
+tldr: "The platform publishes a retained QoS 1 offer on the device's ota topic with a job id, version, signed one-hour HTTPS URL, size and SHA-256. The device downloads into its spare slot, verifies size and digest, reboots on trial, confirms only after MQTT and hello, and reports each state on ota_status."
 order: 4
 updated: 2026-11-19
 keywords: [ota firmware update protocol, ota over mqtt, firmware rollback, signed download url firmware, iot ota job states]
+about: [ota, mqtt, esp32]
 ---
 
 The platform offers a firmware image to one device over its MQTT session. The device downloads it over HTTPS, checks it, boots it on trial and reports how it went. The contract is the same for every chip: an ESP32 writes the image to its other app slot and uses the bootloader's rollback; a cellular modem would use its own download and DFU libraries. For the ESP32 code, see [ESP32 OTA updates over MQTT](/guides/esp32-ota-updates-over-mqtt).
@@ -108,3 +110,31 @@ curl -sS -X POST -H "authorization: Bearer $PAQETT_ADMIN_KEY" \
   -d '{"releaseId":"<release id>"}' \
   https://api.paqett.com/v1/admin/projects/<project>/devices/<device id>/ota
 ```
+
+## FAQ
+
+### How long is the firmware download URL valid?
+
+One hour. A device that reconnects with an unfinished job gets the offer again, with a fresh URL, when it says hello.
+
+### Is the firmware image checked before it boots?
+
+Yes. The device compares the downloaded image's size and SHA-256 with the offer, which arrives over its mutually authenticated MQTT session, and never makes an image bootable if either differs.
+
+### What is the largest firmware image Paqett accepts?
+
+A release can be up to 4 MiB. The device's own limit is the size of its spare OTA slot.
+
+### How does Paqett know an update succeeded?
+
+From the next hello. After the device reports applied, the platform marks the job succeeded when the device comes back reporting the release's version, and failed when it reports any other version, which means it rolled back.
+
+### Can a firmware download be resumed?
+
+Yes. The download URL answers a Range request with 206 Partial Content, so a client can resume. The Paqett ESP32 firmware restarts each attempt from the beginning instead.
+
+## Sources
+
+- [ESP-IDF: Over The Air Updates (OTA)](https://docs.espressif.com/projects/esp-idf/en/stable/esp32/api-reference/system/ota.html): app slots, otadata and bootloader rollback.
+- [ESP-IDF: Partition Tables](https://docs.espressif.com/projects/esp-idf/en/stable/esp32/api-guides/partition-tables.html): the ota_0, ota_1 and otadata partitions an OTA layout needs.
+- [ESP-IDF: ESP HTTP Client](https://docs.espressif.com/projects/esp-idf/en/stable/esp32/api-reference/protocols/esp_http_client.html): HTTPS downloads and the certificate bundle.

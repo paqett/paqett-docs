@@ -2,10 +2,12 @@
 title: "ESP32 OTA updates over MQTT, with automatic rollback"
 nav: "ESP32: OTA updates over MQTT"
 description: "Update ESP32 firmware over MQTT with a signed HTTPS download into the spare OTA slot, a SHA-256 check, a trial boot and automatic rollback on failure."
+tldr: "ESP32 OTA over MQTT: take a retained offer with URL, size and SHA-256, stream the image over HTTPS into the spare OTA slot with esp_ota_write while hashing it, verify, set the boot partition and reboot. Confirm with esp_ota_mark_app_valid_cancel_rollback only once the device is back online, or the bootloader rolls back."
 section: guides
 order: 2
 updated: 2026-11-19
 keywords: [esp32 ota update, esp32 ota over mqtt, esp32 ota rollback, esp_ota_mark_app_valid_cancel_rollback, esp32 ota partition table]
+about: [esp32, ota, mqtt, esp-idf, arduino, mbedtls]
 ---
 
 This guide shows how an ESP32 takes a firmware update offer over its MQTT session, downloads the image over HTTPS into its spare OTA slot, checks size and SHA-256, boots it on trial and keeps it only once it is back online. If the new image crashes or cannot reach the broker, the bootloader rolls back to the previous one and the device says so. It ends with publishing a release and rolling it out through the Paqett admin API.
@@ -421,3 +423,10 @@ Yes. The device compares versions for equality only, so an older release is just
 - [OTA reference](/devices/ota): the full contract, including every field and error.
 - [MQTT topics](/devices/mqtt-topics): everything a device publishes and receives.
 - [ESP32 MQTT with mutual TLS](/guides/esp32-mqtt-mutual-tls-x509): provisioning the device certificate this guide builds on.
+
+## Sources
+
+- [ESP-IDF: Over The Air Updates (OTA)](https://docs.espressif.com/projects/esp-idf/en/stable/esp32/api-reference/system/ota.html): app slots, otadata and bootloader rollback.
+- [ESP-IDF: Partition Tables](https://docs.espressif.com/projects/esp-idf/en/stable/esp32/api-guides/partition-tables.html): the ota_0, ota_1 and otadata partitions an OTA layout needs.
+- [ESP-IDF: ESP HTTP Client](https://docs.espressif.com/projects/esp-idf/en/stable/esp32/api-reference/protocols/esp_http_client.html): HTTPS downloads and the certificate bundle.
+- [Mbed TLS (GitHub)](https://github.com/Mbed-TLS/mbedtls): the TLS and X.509 library ESP-IDF uses for keys, CSRs and handshakes.

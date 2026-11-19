@@ -2,9 +2,11 @@
 title: "How IP devices connect to Paqett"
 nav: "Overview"
 description: "How a device with its own IP connection enrols for an X.509 client certificate, talks MQTT over mutual TLS to Paqett and takes OTA firmware updates."
+tldr: "A Paqett IP device generates its own EC P-256 key, enrols for an X.509 client certificate with POST /v1/devices/provision, connects to mqtt.paqett.com:8883 over mutual TLS, publishes under its own devices/ prefix, and takes OTA firmware updates over the same MQTT session. The private key never leaves the device."
 order: 1
 updated: 2026-11-19
 keywords: [iot device provisioning, x509 device certificate, mqtt mutual tls, device self provisioning, iot ota updates]
+about: [x509, mqtt, mtls, ota, csr, pki]
 ---
 
 A device with its own IP connection (an ESP32 on WiFi today) does three things with Paqett: it **enrols itself** for an X.509 client certificate, it **talks MQTT over mutual TLS** with that certificate, and it **takes firmware updates** offered over the same MQTT session. This page is the map; the pages after it are the contract in detail.
@@ -47,3 +49,28 @@ There is also nothing per-device to flash at the factory. Every device in a flee
 
 - Building on an ESP32: [ESP32 MQTT over mutual TLS with an X.509 client certificate](/guides/esp32-mqtt-mutual-tls-x509), then [ESP32 OTA updates over MQTT](/guides/esp32-ota-updates-over-mqtt).
 - Porting to another chip: read the three reference pages. Nothing in the contract is specific to the ESP32.
+
+## FAQ
+
+### What is device self-provisioning?
+
+Device self-provisioning means a device obtains its own identity the first time it boots, instead of having one loaded at the factory. On Paqett, the device generates an EC P-256 key, sends a certificate signing request with the fleet's provisioning key, and receives an X.509 certificate whose common name is its device id.
+
+### Does Paqett store device private keys?
+
+No. The private key is generated on the device and never leaves it. The platform keeps only the certificates it issued and the fingerprints of their public keys, so a database leak gives nobody a way to connect as one of your devices.
+
+### What happens if someone extracts the provisioning key from a device?
+
+They can enrol new devices into that one project, nothing more. They cannot take over an existing device, because re-provisioning is pinned to each device's original key, and they cannot reach any other project. Rotating the provisioning key in the console stops further enrolment; devices already enrolled keep working.
+
+### Which chips can connect to Paqett this way?
+
+Any device that can generate an EC P-256 key, build a PKCS#10 certificate signing request and speak MQTT over TLS can use the contract. The guides use an ESP32-C6 on ESP-IDF 5.3 through Arduino-ESP32 3.1.3; nothing in the protocol is specific to the ESP32.
+
+## Sources
+
+- [RFC 5280: Internet X.509 Public Key Infrastructure Certificate and CRL Profile](https://www.rfc-editor.org/rfc/rfc5280): the X.509 certificate format the device and broker certificates follow.
+- [RFC 2986: PKCS #10 Certification Request Syntax](https://www.rfc-editor.org/rfc/rfc2986): the CSR format a device sends to enrol.
+- [MQTT Version 3.1.1 (OASIS Standard)](https://docs.oasis-open.org/mqtt/mqtt/v3.1.1/mqtt-v3.1.1.html): retained messages, last will, QoS 1 and topic filters.
+- [ESP-IDF: Over The Air Updates (OTA)](https://docs.espressif.com/projects/esp-idf/en/stable/esp32/api-reference/system/ota.html): app slots, otadata and bootloader rollback.

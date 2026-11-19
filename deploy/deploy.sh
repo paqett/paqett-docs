@@ -52,3 +52,31 @@ rm -f $SITE_FILE.new
 EOF
 
 echo "deployed: https://docs.paqett.com"
+
+# IndexNow: tell Bing (and through it ChatGPT search and Copilot), Yandex, Seznam and Naver
+# which URLs changed. The key file is static/<key>.txt. Only pages whose built HTML differs
+# from the last deploy are sent; INDEXNOW=all sends every URL in the sitemap, INDEXNOW=0 none.
+INDEXNOW_KEY=7fb74c3a440d90bc91f5fac1b5bb3fc0
+if [ "${INDEXNOW:-changed}" != "0" ]; then
+  STATE=.indexnow-hashes
+  touch "$STATE"
+  urls=()
+  while read -r loc; do
+    path=${loc#https://docs.paqett.com}
+    file="build${path%/}.html"; [ "$path" = "/" ] && file=build/index.html
+    [ -f "$file" ] || file="build${path%/}/index.html"
+    hash=$(shasum -a 256 "$file" 2>/dev/null | cut -d' ' -f1)
+    if [ "${INDEXNOW:-changed}" = "all" ] || ! grep -q "^$path $hash\$" "$STATE"; then urls+=("$loc"); fi
+    echo "$path $hash"
+  done < <(grep -o '<loc>[^<]*' build/sitemap.xml | sed 's/<loc>//') > "$STATE.new"
+  mv "$STATE.new" "$STATE"
+  if [ ${#urls[@]} -gt 0 ]; then
+    list=$(printf '"%s",' "${urls[@]}"); list="[${list%,}]"
+    code=$(curl -s -o /dev/null -w '%{http_code}' -X POST https://api.indexnow.org/indexnow \
+      -H 'content-type: application/json; charset=utf-8' \
+      -d "{\"host\":\"docs.paqett.com\",\"key\":\"$INDEXNOW_KEY\",\"keyLocation\":\"https://docs.paqett.com/$INDEXNOW_KEY.txt\",\"urlList\":$list}")
+    echo "indexnow: ${#urls[@]} url(s) submitted, HTTP $code"
+  else
+    echo "indexnow: nothing changed"
+  fi
+fi

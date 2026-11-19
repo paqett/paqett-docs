@@ -49,6 +49,7 @@
 			</a>
 			<nav class="top-links" aria-label="Site">
 				<a href="/guides/esp32-mqtt-mutual-tls-x509" class:on={current.startsWith('/guides')}>Guides</a>
+				<a href="/learn" class:on={current.startsWith('/learn')}>Concepts</a>
 				<a href="/devices/overview" class:on={current.startsWith('/devices')}>Reference</a>
 				<a href="https://www.paqett.com/">paqett.com</a>
 				<a href="https://console.paqett.com/" class="cta">Console</a>

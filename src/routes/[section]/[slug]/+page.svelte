@@ -1,11 +1,16 @@
 <script lang="ts">
-	import Seo, { SITE, ogImageFor } from '$lib/Seo.svelte';
-	import { neighbours, sectionLabel } from '$lib/content';
+	import Seo, { ogImageFor } from '$lib/Seo.svelte';
+	import { neighbours, related, sectionLabel } from '$lib/content';
+	import { docSchema } from '$lib/schema';
 
 	let { data } = $props();
 	const doc = $derived(data.doc);
 	const Body = $derived(data.component);
 	const near = $derived(neighbours(doc));
+	// The body's own "Related" or "Next" section replaces the automatic one.
+	const ownRelated = $derived(doc.headings.some((h) => h.depth === 2 && /^(related|next)\b/i.test(h.text)));
+	const more = $derived(ownRelated ? [] : related(doc));
+	const minutes = $derived(Math.max(1, Math.round(doc.wordCount / 220)));
 
 	const updatedLabel = $derived(
 		new Date(doc.updated + 'T12:00:00Z').toLocaleDateString('en-GB', {
@@ -14,30 +19,6 @@
 			year: 'numeric'
 		})
 	);
-
-	const article = $derived({
-		'@context': 'https://schema.org',
-		'@type': 'TechArticle',
-		headline: doc.title,
-		description: doc.description,
-		url: SITE + doc.path,
-		image: ogImageFor(doc.path),
-		dateModified: doc.updated,
-		datePublished: doc.updated,
-		inLanguage: 'en-GB',
-		wordCount: doc.wordCount || undefined,
-		keywords: doc.keywords.join(', ') || undefined,
-		proficiencyLevel: 'Expert',
-		articleSection: sectionLabel(doc.section),
-		author: { '@type': 'Organization', name: 'Paqett', url: 'https://www.paqett.com/' },
-		publisher: {
-			'@type': 'Organization',
-			name: 'Paqett',
-			url: 'https://www.paqett.com/',
-			logo: { '@type': 'ImageObject', url: `${SITE}/logo.png` }
-		},
-		mainEntityOfPage: SITE + doc.path
-	});
 </script>
 
 <Seo
@@ -48,8 +29,9 @@
 	modified={doc.updated}
 	keywords={doc.keywords}
 	noindex={doc.draft}
+	markdown="{doc.path}.md"
 	crumbs={[{ name: sectionLabel(doc.section), path: `/${doc.section}` }, { name: doc.nav }]}
-	jsonLd={article}
+	jsonLd={docSchema(doc, ogImageFor(doc.path))}
 />
 
 <div class="page">
@@ -57,12 +39,35 @@
 		<header class="doc-head">
 			<p class="tag crumb"><a href="/{doc.section}">{sectionLabel(doc.section)}</a></p>
 			<h1>{doc.title}</h1>
-			<p class="lede">{doc.description}</p>
-			<p class="meta tag">Updated {updatedLabel}</p>
+			{#if doc.tldr}
+				<div class="tldr" role="note" aria-label="In short">
+					<p class="tag">In short</p>
+					<p>{doc.tldr}</p>
+				</div>
+			{:else}
+				<p class="lede">{doc.description}</p>
+			{/if}
+			<p class="meta tag">
+				Updated <time datetime={doc.updated}>{updatedLabel}</time> · By
+				<a href="https://www.alessio.london/" rel="author">Alessio Grespi</a> · {minutes} min read ·
+				<a href="{doc.path}.md" type="text/markdown">Markdown</a>
+			</p>
 		</header>
 		<div class="prose">
 			<Body />
 		</div>
+		{#if more.length}
+			<section class="related" aria-labelledby="related-auto">
+				<h2 id="related-auto">Related</h2>
+				<ul class="cards">
+					{#each more as d (d.path)}
+						<li>
+							<a href={d.path} class="card"><strong>{d.title}</strong><span>{d.description}</span></a>
+						</li>
+					{/each}
+				</ul>
+			</section>
+		{/if}
 		<nav class="pager" aria-label="Next and previous">
 			{#if near.prev}
 				<a href={near.prev.path} class="prev"><span class="tag">Previous</span>{near.prev.nav}</a>

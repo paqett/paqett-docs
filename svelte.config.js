@@ -11,10 +11,34 @@ function textOf(node) {
 	return (node.children ?? []).map(textOf).join('');
 }
 
+/** Readable text of a block: paragraphs and list items joined, code blocks left out. */
+function blockText(nodes) {
+	return nodes
+		.filter((n) => n.type !== 'code' && n.type !== 'html')
+		.map((n) => textOf(n).replace(/\s+/g, ' ').trim())
+		.filter(Boolean)
+		.join(' ');
+}
+
+/** First link (url + text) in a node, for Sources list items. */
+function firstLink(node) {
+	if (node.type === 'link') return { url: node.url, name: textOf(node) };
+	for (const c of node.children ?? []) {
+		const l = firstLink(c);
+		if (l) return l;
+	}
+	return null;
+}
+
 /**
- * Remark plugin: adds `headings` (h2 and h3, with the ids rehype-slug gives them, for the
- * page's table of contents) and `wordCount` (prose only, for the TechArticle JSON-LD) to
- * each page's frontmatter metadata.
+ * Remark plugin. Adds to each page's frontmatter metadata, for the table of contents and the
+ * structured data (src/lib/schema.ts):
+ * - headings: h2 and h3 with the ids rehype-slug gives them
+ * - wordCount: prose only
+ * - faq: `### Question` + answer under `## FAQ` (FAQPage)
+ * - steps: `## Step N: name` + its first paragraph (HowTo)
+ * - terms: every `### Term` + its first paragraph on a `kind: glossary` page (DefinedTermSet)
+ * - sources: the links listed under `## Sources` (citation)
  */
 function pageOutline() {
 	return (tree, file) => {
@@ -39,6 +63,57 @@ function pageOutline() {
 			.join(' ')
 			.split(/\s+/)
 			.filter((w) => /\w/.test(w)).length;
+
+		// Sections: walk the top-level nodes, tracking the current h2 and h3.
+		const faq = [];
+		const steps = [];
+		const terms = [];
+		const sources = [];
+		const top = tree.children;
+		const ids = new GithubSlugger();
+		let h2 = '';
+		for (let i = 0; i < top.length; i++) {
+			const n = top[i];
+			if (n.type !== 'heading') continue;
+			const text = textOf(n).trim();
+			const id = ids.slug(text);
+			// The body until the next heading of the same or a higher level.
+			const body = [];
+			for (let j = i + 1; j < top.length; j++) {
+				const m = top[j];
+				if (m.type === 'heading' && m.depth <= n.depth) break;
+				if (m.type === 'heading') break;
+				body.push(m);
+			}
+			if (n.depth === 2) {
+				h2 = text.toLowerCase();
+				const step = text.match(/^Step\s+\d+\s*[:.]\s*(.+)$/i);
+				if (step) {
+					const first = body.find((b) => b.type === 'paragraph');
+					steps.push({ name: step[1], text: first ? blockText([first]) : step[1], id });
+				}
+				if (h2 === 'sources') {
+					for (const list of body.filter((b) => b.type === 'list')) {
+						for (const item of list.children) {
+							const l = firstLink(item);
+							if (l && /^https?:/.test(l.url)) sources.push(l);
+						}
+					}
+				}
+			}
+			if (n.depth === 3 && (h2 === 'faq' || h2.startsWith('frequently asked'))) {
+				const answer = blockText(body);
+				if (answer) faq.push({ q: text, a: answer });
+			}
+			if (n.depth === 3 && fm.kind === 'glossary') {
+				const first = body.find((b) => b.type === 'paragraph');
+				if (first) terms.push({ name: text, text: blockText([first]), id });
+			}
+		}
+		fm.faq = faq;
+		fm.steps = steps;
+		fm.terms = terms;
+		fm.sources = sources;
 	};
 }
 
