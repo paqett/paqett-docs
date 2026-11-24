@@ -1,15 +1,15 @@
 ---
 title: "How IP devices connect to Paqett"
 nav: "Overview"
-description: "How a device with its own IP connection enrols for an X.509 client certificate, talks MQTT over mutual TLS to Paqett and takes OTA firmware updates."
-tldr: "A Paqett IP device generates its own EC P-256 key, enrols for an X.509 client certificate with POST /v1/devices/provision, connects to mqtt.paqett.com:8883 over mutual TLS, publishes under its own devices/ prefix, and takes OTA firmware updates over the same MQTT session. The private key never leaves the device."
+description: "How an IP device enrols for an X.509 client certificate, talks MQTT over mutual TLS to Paqett, describes its own settings and commands, and takes OTA updates."
+tldr: "A Paqett IP device generates its own EC P-256 key, enrols for an X.509 client certificate with POST /v1/devices/provision, connects to mqtt.paqett.com:8883 over mutual TLS and publishes under its own devices/ prefix. It describes its own metrics, settings and commands, takes desired config and commands, and takes OTA firmware updates over the same MQTT session."
 order: 1
-updated: 2026-11-19
-keywords: [iot device provisioning, x509 device certificate, mqtt mutual tls, device self provisioning, iot ota updates]
-about: [x509, mqtt, mtls, ota, csr, pki]
+updated: 2026-11-24
+keywords: [iot device provisioning, x509 device certificate, mqtt mutual tls, device self provisioning, iot ota updates, iot device shadow]
+about: [x509, mqtt, mtls, ota, csr, pki, digital-twin]
 ---
 
-A device with its own IP connection (an ESP32 on WiFi today) does three things with Paqett: it **enrols itself** for an X.509 client certificate, it **talks MQTT over mutual TLS** with that certificate, and it **takes firmware updates** offered over the same MQTT session. This page is the map; the pages after it are the contract in detail.
+A device with its own IP connection (an ESP32 on Wi-Fi today) does four things with Paqett: it **enrols itself** for an X.509 client certificate, it **talks MQTT over mutual TLS** with that certificate, it **describes itself** so the platform can show its readings and change its settings, and it **takes firmware updates** offered over the same MQTT session. This page is the map; the pages after it are the contract in detail.
 
 ## The flow
 
@@ -21,7 +21,10 @@ device                                   api.paqett.com                  mqtt.pa
   |   model, firmware, csr_pem               | cert signed, CN = device id      |
   |<-- device_id, cert_pem, ca_pem, ... -----|                                  |
   |-- TLS: verify the broker with ca_pem, present cert_pem + own key ---------->|
-  |-- devices/<id>/status (retained), devices/<id>/hello ---------------------->|
+  |-- devices/<id>/status, describe (retained), hello, state (retained) ------->|
+  |-- devices/<id>/telemetry -------------------------------------------------->|
+  |<-- devices/<id>/config (retained), cmd/<name> ------------------------------|
+  |-- devices/<id>/cmd_ack ---------------------------------------------------->|
   |<-- devices/<id>/ota offer (retained) ---------------------------------------|
   |-- GET signed image URL (HTTPS) -->|                                         |
   |-- devices/<id>/ota_status ------------------------------------------------->|
@@ -31,7 +34,8 @@ device                                   api.paqett.com                  mqtt.pa
 2. **It enrols.** `POST https://api.paqett.com/v1/devices/provision` with a project API key that carries the `devices:provision` scope. The answer is its certificate, the CA that signed it, and where to connect. See [Provisioning API](/devices/provisioning).
 3. **It connects.** MQTT over TLS to `mqtt.paqett.com:8883`. The device verifies the broker against the CA it was given, and the broker verifies the device's certificate. The certificate's common name is the device id; the broker uses it as the MQTT username and client id, whatever the client sends.
 4. **It talks under its own prefix.** Everything a device publishes or receives is under `devices/<device id>/`, and the broker lets it do nothing else. See [MQTT topics](/devices/mqtt-topics).
-5. **It takes updates.** The platform offers a firmware image on `devices/<device id>/ota`; the device downloads it over HTTPS, checks its SHA-256, boots it on trial and confirms it only once it is back online. See [OTA updates](/devices/ota).
+5. **It describes itself.** On every connect the device publishes a retained `describe`: its metrics, its settings as typed fields with limits, and its commands. It sends readings on `telemetry`, reports the settings it runs on `state`, applies the desired settings it receives on `config`, and answers commands on `cmd_ack`. Nothing about a particular device is written into the platform. See [Control protocol](/devices/control-protocol).
+6. **It takes updates.** The platform offers a firmware image on `devices/<device id>/ota`; the device downloads it over HTTPS, checks its SHA-256, boots it on trial and confirms it only once it is back online. See [OTA updates](/devices/ota).
 
 ## Why the device makes its own key
 
@@ -47,8 +51,8 @@ There is also nothing per-device to flash at the factory. Every device in a flee
 
 ## Where to start
 
-- Building on an ESP32: [ESP32 MQTT over mutual TLS with an X.509 client certificate](/guides/esp32-mqtt-mutual-tls-x509), then [ESP32 OTA updates over MQTT](/guides/esp32-ota-updates-over-mqtt).
-- Porting to another chip: read the three reference pages. Nothing in the contract is specific to the ESP32.
+- Building on an ESP32: [ESP32 MQTT over mutual TLS with an X.509 client certificate](/guides/esp32-mqtt-mutual-tls-x509), then [ESP32 device shadow over MQTT](/guides/esp32-device-shadow-config-commands) and [ESP32 OTA updates over MQTT](/guides/esp32-ota-updates-over-mqtt).
+- Porting to another chip: read the reference pages, [Provisioning API](/devices/provisioning), [MQTT topics](/devices/mqtt-topics), [Control protocol](/devices/control-protocol) and [OTA updates](/devices/ota). Nothing in the contract is specific to the ESP32.
 
 ## FAQ
 
@@ -63,6 +67,10 @@ No. The private key is generated on the device and never leaves it. The platform
 ### What happens if someone extracts the provisioning key from a device?
 
 They can enrol new devices into that one project, nothing more. They cannot take over an existing device, because re-provisioning is pinned to each device's original key, and they cannot reach any other project. Rotating the provisioning key in the console stops further enrolment; devices already enrolled keep working.
+
+### How does the platform know what settings a device has?
+
+The device tells it. On every connect it publishes a retained `describe` message listing its metrics, its config keys with a type and limits for each, and its commands with their arguments. The platform validates config and commands against that description, and the console builds the device's screens from it.
 
 ### Which chips can connect to Paqett this way?
 

@@ -1,16 +1,16 @@
 ---
 title: "IoT device security glossary: X.509, CSR, mTLS, OTA and more"
 nav: "Glossary"
-description: "IoT device security glossary: short, standalone definitions of X.509, CSR, PEM, P-256, mTLS, CRL, OCSP, MQTT, NVS, OTA and the other terms these docs use."
-tldr: "Short, standalone definitions of the terms used across device identity, MQTT and firmware update work: X.509 certificates and the PKI around them, CSRs and key formats, TLS and mutual TLS, revocation, provisioning models, MQTT concepts such as topics, QoS and last will, and ESP32 storage and OTA terms such as NVS, app slots and bootloader rollback."
+description: "IoT device glossary: short, standalone definitions of X.509, CSR, P-256, mTLS, CRL, MQTT, device shadow, desired and reported state, NVS, OTA and more."
+tldr: "Short, standalone definitions of the terms used across device identity, MQTT and firmware update work: X.509 certificates and the PKI around them, CSRs and key formats, TLS and mutual TLS, revocation, provisioning models, MQTT topics, QoS and last will, the device shadow with its desired and reported state, and ESP32 terms such as NVS, app slots and bootloader rollback."
 order: 3
-updated: 2026-11-19
+updated: 2026-11-24
 kind: "glossary"
-keywords: [iot device security glossary, what is an x509 certificate, what is a csr, mtls meaning, mqtt terms explained, ota firmware update terms]
-about: [x509, pki, mtls, csr, tls, mqtt, ecc, ota, nvs]
+keywords: [iot device security glossary, what is an x509 certificate, what is a csr, mtls meaning, mqtt terms explained, ota firmware update terms, what is a device shadow, desired vs reported state]
+about: [x509, pki, mtls, csr, tls, mqtt, ecc, ota, nvs, digital-twin]
 ---
 
-This glossary defines the terms that come up when a device gets its own identity, talks MQTT over mutual TLS and takes firmware updates over the air. Each entry stands on its own and opens with a one-sentence definition. Where Paqett uses a term in a specific way, the entry says how and links to the reference page.
+This glossary defines the terms that come up when a device gets its own identity, talks MQTT over mutual TLS, is configured through a device shadow and takes firmware updates over the air. Each entry stands on its own and opens with a one-sentence definition. Where Paqett uses a term in a specific way, the entry says how and links to the reference page.
 
 ## A–F
 
@@ -58,6 +58,12 @@ See [Claim certificates vs CSR](/learn/claim-certificates-vs-csr).
 
 A client ID is the string an MQTT client sends in its CONNECT packet to identify its session to the broker. MQTT 5.0 requires brokers to accept client IDs of 1 to 23 bytes of letters and digits, and a new connection with a client ID already in use takes over that session. Paqett's broker sets the client ID from the device certificate's CN, whatever the device sends.
 
+### cmd_ack (command acknowledgement)
+
+A command acknowledgement is the message a device sends to answer a command, saying whether it carried it out and with what result or error. A Paqett device publishes it on `devices/<id>/cmd_ack` with the command's `id`, `cmd`, `ok`, and a `result` or an `error` such as `unknown_command`.
+
+See [Control protocol](/devices/control-protocol#commands-cmdname-and-cmd_ack).
+
 ### CN (common name)
 
 The CN is an attribute in a certificate's subject name that traditionally holds the name of the entity the certificate identifies. Many MQTT brokers use a client certificate's CN as the client's identity; on Paqett it is the device id.
@@ -76,9 +82,27 @@ See [Provisioning API](/devices/provisioning).
 
 DER is the binary encoding of ASN.1 structures in which every value has exactly one valid encoding. Certificates, CSRs and keys are defined in ASN.1 and are signed and stored as DER; PEM is DER wrapped in Base64 text.
 
+### Describe (device self-description)
+
+A describe message is a device's description of itself: the metrics it sends, its configuration keys with a type and limits for each, and its commands with their arguments. A Paqett device publishes it retained on `devices/<id>/describe` on every connect, and the platform validates config and commands against it and builds the console's screens from it.
+
+See [Control protocol](/devices/control-protocol#describe).
+
+### Desired state
+
+Desired state is the configuration that someone wants a device to run, held in the cloud until the device applies it. On Paqett it is the retained `config` message, `version` and `desired`, which holds only the keys someone has set; a key absent from it means the device's default.
+
+See [Control protocol](/devices/control-protocol#config).
+
 ### Device CA
 
 A device CA is a certificate authority dedicated to signing the certificates of one platform's or one fleet's devices. Paqett's device CA signs every device's client certificate and the MQTT broker's server certificate, so it is the only trust anchor a device needs for MQTT.
+
+### Device shadow
+
+A device shadow is a stored copy of a device's configuration in two halves, the desired state someone set and the reported state the device runs, kept so the two can be compared whether or not the device is online. AWS IoT calls it a shadow and Azure IoT Hub a device twin. On Paqett both halves are retained MQTT messages, `config` and `state`.
+
+See [ESP32 device shadow over MQTT](/guides/esp32-device-shadow-config-commands).
 
 ### ECC (elliptic-curve cryptography)
 
@@ -87,6 +111,12 @@ ECC is public-key cryptography built on the arithmetic of points on an elliptic 
 ### ECDSA (Elliptic Curve Digital Signature Algorithm)
 
 ECDSA is the digital signature algorithm for elliptic-curve keys, standardised by NIST in FIPS 186. An ECDSA signature on P-256 is two 32-byte integers, r and s. Paqett devices sign their CSRs with ECDSA-SHA256 and sign their TLS handshakes with the same key.
+
+### FieldSpec
+
+A FieldSpec is Paqett's typed description of one configuration key or command argument: its type (`integer`, `number`, `boolean`, `string`, `enum` or `colour`), a label, and its limits, such as `min`, `max`, `step`, `values` or `max_length`, and a default. Values are checked against it before the platform sends them and again on the device.
+
+See [Control protocol](/devices/control-protocol#fieldspec).
 
 ### Flash encryption
 
@@ -202,6 +232,12 @@ A public key is the shareable half of a key pair, used to verify signatures made
 
 QoS is the MQTT delivery guarantee attached to each message: 0 is at most once, 1 is at least once and 2 is exactly once. Higher levels add acknowledgement packets, and Paqett devices use QoS 1 on every topic.
 
+### Reported state
+
+Reported state is the configuration a device says it is actually running, as opposed to the desired state someone asked for. A Paqett device publishes it retained on `devices/<id>/state` with the desired version it last applied, the value of every key, and a reason for each value it refused.
+
+See [Control protocol](/devices/control-protocol#state).
+
 ### Retained message
 
 A retained message is the last message published with the RETAIN flag on a topic, which the broker stores and sends straight away to every new subscriber of that topic. Publishing an empty retained payload to the topic removes it.
@@ -236,6 +272,10 @@ SPKI is the X.509 structure that holds a public key together with its algorithm 
 
 TLS is the IETF protocol that gives a network connection confidentiality, integrity and authentication, standardised as TLS 1.2 in RFC 5246 and TLS 1.3 in RFC 8446. The server is always authenticated; the client is authenticated only in mutual TLS.
 
+### Telemetry
+
+Telemetry is the stream of readings a device sends, such as temperatures, signal strength or counters. A Paqett IP device publishes it as a JSON object on `devices/<id>/telemetry`; every number and boolean becomes a stored sample, nested objects are flattened with dots, and an optional `ts` gives the reading time in Unix milliseconds.
+
 ### Topic
 
 A topic is the UTF-8 string, divided into levels by slashes, that an MQTT message is published to and that subscriptions match against. A subscription can use `+` to match one level and `#` to match all remaining levels, as in `devices/<id>/cmd/#`.
@@ -254,6 +294,7 @@ An X.509 certificate is a signed data structure that binds a public key to a sub
 - [Claim certificates vs CSR provisioning](/learn/claim-certificates-vs-csr)
 - [How IP devices connect to Paqett](/devices/overview)
 - [ESP32 MQTT over mutual TLS with an X.509 client certificate](/guides/esp32-mqtt-mutual-tls-x509)
+- [Device control protocol](/devices/control-protocol)
 
 ## Sources
 
@@ -262,4 +303,5 @@ An X.509 certificate is a signed data structure that binds a public key to a sub
 - [RFC 8446: The Transport Layer Security (TLS) Protocol Version 1.3](https://www.rfc-editor.org/rfc/rfc8446): handshake, cipher suites, mandatory P-256 support
 - [MQTT Version 5.0, OASIS Standard](https://docs.oasis-open.org/mqtt/mqtt/v5.0/mqtt-v5.0.html): client ID, QoS, retained messages, will messages, topic wildcards, ports
 - [ESP-IDF: Over The Air Updates (OTA)](https://docs.espressif.com/projects/esp-idf/en/stable/esp32/api-reference/system/ota.html): app slots, OTA data partition, bootloader rollback
+- [AWS IoT Device Shadow service](https://docs.aws.amazon.com/iot/latest/developerguide/iot-device-shadows.html): desired and reported state, the device shadow model
 - [ESP-IDF: Non-Volatile Storage Library](https://docs.espressif.com/projects/esp-idf/en/stable/esp32/api-reference/storage/nvs_flash.html): NVS key-value storage and NVS encryption

@@ -1,6 +1,6 @@
 import adapter from '@sveltejs/adapter-static';
 import { vitePreprocess } from '@sveltejs/vite-plugin-svelte';
-import { mdsvex } from 'mdsvex';
+import { mdsvex, code_highlighter } from 'mdsvex';
 import GithubSlugger from 'github-slugger';
 import rehypeSlug from 'rehype-slug';
 import rehypeAutolinkHeadings from 'rehype-autolink-headings';
@@ -117,6 +117,19 @@ function pageOutline() {
 	};
 }
 
+/**
+ * mdsvex's highlighter puts each block inside {@html `...`}, a JavaScript template literal, and
+ * escapes only \t, \r and \n there: every other backslash in code was eaten, so
+ * "{\"ok\":true}" rendered as "{"ok":true}". Highlight without that wrapper, turn every
+ * backslash into an entity, then wrap it the same way.
+ */
+async function highlighter(code, lang, meta, filename) {
+	const html = await code_highlighter(code, lang, meta, filename, false);
+	const m = html.match(/^(<pre[^>]*>)([\s\S]*)(<\/pre>)$/);
+	if (!m) return html;
+	return `${m[1]}{@html \`${m[2].replace(/\\/g, '&#92;')}\`}${m[3]}`;
+}
+
 /** @type {import('@sveltejs/kit').Config} */
 const config = {
 	extensions: ['.svelte', '.md'],
@@ -127,6 +140,7 @@ const config = {
 		mdsvex({
 			extensions: ['.md'],
 			smartypants: false,
+			highlight: { highlighter },
 			remarkPlugins: [pageOutline],
 			rehypePlugins: [
 				rehypeSlug,

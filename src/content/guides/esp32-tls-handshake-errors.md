@@ -3,7 +3,7 @@ title: "ESP32 TLS handshake failed: mbedTLS error codes and fixes"
 nav: "ESP32: TLS handshake errors"
 description: "ESP32 TLS handshake failed? Decode the mbedTLS and esp-tls codes ESP-IDF prints, such as -0x2700 and -0x7780, read the verify flags and fix the cause."
 tldr: "An ESP32 TLS failure carries up to three numbers: an esp-tls error such as ESP_ERR_MBEDTLS_SSL_HANDSHAKE_FAILED, an mbedTLS code such as -0x2700, and X.509 verify flags. -0x2700 means the ESP32 rejected the server's certificate, and the flags say why. -0x7780 means the server ended the handshake, usually over your client certificate or key."
-order: 4
+order: 5
 updated: 2026-11-19
 keywords: [esp32 tls handshake failed, esp-tls mbedtls_ssl_handshake returned -0x2700, mbedtls -0x7780, esp32 mqtt tls error, MBEDTLS_ERR_X509_CERT_VERIFY_FAILED esp32, esp32 certificate verify failed, x509 verify flags esp32]
 about: [tls, mbedtls, esp32, mtls, x509, mqtt, esp-idf, arduino]

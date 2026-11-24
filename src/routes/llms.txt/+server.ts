@@ -17,6 +17,7 @@ export function GET() {
 		'- Certificates are EC P-256, valid 5 years, common name = device id; the broker maps the CN to the MQTT username and client id and allows only devices/<id>/#.',
 		'- Re-provisioning is pinned to the device key (a different key gets 409 until the certificates are revoked); revocation is enforced by the broker on every connect and fails closed.',
 		'- OTA: a retained offer on devices/<id>/ota with a signed one-hour HTTPS URL, size and SHA-256; the device boots the image on trial and confirms it only after MQTT is up and its hello is sent.',
+		'- Control protocol v1: the device publishes a retained describe (metrics, config keys as typed FieldSpecs, commands), telemetry (numbers and booleans become samples, nested objects flattened with dots), a retained state (reported config); the platform publishes a retained config (desired set, absent or null = device default) and cmd/<name> {id, args}, answered on cmd_ack with the same id.',
 		`- Everything as one file: ${SITE}/llms-full.txt`,
 		'',
 		...SECTIONS.flatMap((s) => [
