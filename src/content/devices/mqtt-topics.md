@@ -1,11 +1,11 @@
 ---
 title: "MQTT topics and payloads for Paqett devices"
 nav: "MQTT topics"
-description: "The MQTT topics a Paqett device publishes and subscribes to over mutual TLS: status, hello, commands and OTA, with payloads, QoS and retain flags."
-tldr: "A Paqett device connects to mqtt.paqett.com:8883 with its client certificate and may only use topics under devices/ plus its device id. It publishes a retained status and a hello on every connect, answers commands on cmd/name via cmd_ack, receives retained OTA offers on ota and reports progress on ota_status."
+description: "Every MQTT topic a Paqett device uses over mutual TLS: status, hello, describe, telemetry, state, config, commands and OTA, with QoS, retain and ACL."
+tldr: "A Paqett device connects to mqtt.paqett.com:8883 with its client certificate and may only use topics under devices/ plus its device id. On every connect it publishes a retained status, a retained describe, a hello and a retained state. It sends readings on telemetry, takes desired config on config, answers cmd/name on cmd_ack and takes OTA offers on ota."
 order: 3
-updated: 2026-11-19
-keywords: [mqtt topic structure iot, mqtt last will retained status, mqtt device commands, mqtt acl per device, mqtt topics esp32]
+updated: 2026-11-24
+keywords: [mqtt topic structure iot, mqtt last will retained status, mqtt device commands, mqtt acl per device, mqtt topics esp32, mqtt device shadow topics]
 about: [mqtt, mtls, tls]
 ---
 
@@ -25,23 +25,41 @@ A device connects to `mqtt.paqett.com:8883` with its client certificate. The bro
 
 All topics are under `devices/<device id>/`.
 
-| Topic | Direction | QoS, retain | Payload |
+| Topic | Published by | QoS, retain | Payload |
 | --- | --- | --- | --- |
-| `status` | device, and the broker as the will | 1, retained | `{"online":true}` on connect; `{"online":false}` when the connection drops |
+| `status` | device; the broker as the will | 1, retained | `{"online":true}` on connect; `{"online":false}` when the connection drops |
 | `hello` | device, on every connect | 1 | `hardware_id`, `model`, `firmware`, `reset_reason`, `uptime_ms`, `rssi`, `ip` |
-| `telemetry` | device | 1 | Readings, in your device's own format |
-| `cmd/<name>` | platform | 1 | A command |
-| `cmd_ack` | device | 1 | `cmd`, `ok`, and anything the command returns |
+| `describe` | device, on every connect before `hello` | 1, retained | The device's metrics, config keys and commands. See [Control protocol](/devices/control-protocol#describe). |
+| `telemetry` | device | 1 | Readings: a JSON object of numbers and booleans, optional `ts`. See [Control protocol](/devices/control-protocol#telemetry). |
+| `state` | device, on connect and after every config | 1, retained | `version`, `reported`, optional `errors`: the config the device runs |
+| `config` | platform | 1, retained | `version`, `desired`: the desired config |
+| `cmd/<name>` | platform | 1 | A command, `id` and `args` |
+| `cmd_ack` | device | 1 | `id`, `cmd`, `ok`, and `result` or `error` |
 | `ota` | platform | 1, retained | A firmware update offer, or empty when there is none. See [OTA updates](/devices/ota). |
 | `ota_status` | device | 1 | How an update is going. See [OTA updates](/devices/ota). |
+
+`describe`, `telemetry`, `state`, `config`, `cmd/<name>` and `cmd_ack` are the [control protocol](/devices/control-protocol): `config` and `state` are the device shadow, the desired and the reported config.
+
+## Who may use which topic
+
+The broker's ACL lets a device publish and subscribe to `devices/<its own id>/#` and nothing else. The id comes from the common name of the certificate it connected with, so one device can never read or write another's topics, whatever topic string it builds.
+
+| Client | Subscribes to | Publishes to |
+| --- | --- | --- |
+| A device | `cmd/#`, `ota`, `config` under its own prefix | `status`, `hello`, `describe`, `telemetry`, `state`, `cmd_ack`, `ota_status` under its own prefix |
+| The platform | `devices/+/hello`, `status`, `ota_status`, `telemetry`, `describe`, `state`, `cmd_ack` | `devices/+/ota`, `devices/+/config`, `devices/+/cmd/#` |
+
+`cmd_ack` sits outside `cmd/#` on purpose, so a device subscribed to its commands never hears its own acknowledgements.
 
 ## On every connect
 
 1. Publish `{"online":true}` to `status`, retained, so anything that subscribes later sees the device as online.
-2. Subscribe to `cmd/#` and `ota`.
-3. Publish a `hello`.
+2. Subscribe to `cmd/#`, `ota` and `config`.
+3. Publish `describe`, retained.
+4. Publish a `hello`.
+5. Publish `state`, retained.
 
-The order matters for OTA: a device subscribed to `ota` before it says hello receives any waiting offer, and the platform re-sends an unfinished offer with a fresh download link when it sees the hello.
+The order matters. `describe` goes first so whatever reacts to the hello already knows what the device is. A device subscribed to `ota` before it says hello receives any waiting offer, and the platform re-sends an unfinished offer with a fresh download link when it sees the hello. Subscribing to `config` delivers the retained desired config, which the device applies before it publishes `state` again.
 
 ### hello
 
@@ -49,7 +67,7 @@ The order matters for OTA: a device subscribed to `ota` before it says hello rec
 {
   "hardware_id": "esp32c6-40ac1b2c3d4e",
   "model": "esp32c6-devkit",
-  "firmware": "0.3.0",
+  "firmware": "0.4.0",
   "reset_reason": "poweron",
   "uptime_ms": 5120,
   "rssi": -61,
@@ -61,17 +79,19 @@ The platform records the device's presence and last hello, and takes its firmwar
 
 ## Commands
 
-The platform publishes a command on `cmd/<name>`; the device answers on `cmd_ack`. `cmd/ping` is the one every device answers:
+The platform publishes a command on `cmd/<name>` with an `id`; the device answers on `cmd_ack` with the same `id`:
 
 ```json
-{"cmd":"ping","ok":true}
+{"id":"3f6c1d2e-8a4b-4c1e-9f0a-2b7d5e6a9c10","cmd":"ping","ok":true,"result":{"uptime_s":812}}
 ```
 
 A command the device does not know is answered too, so the platform is never left waiting:
 
 ```json
-{"cmd":"reboot-into-dfu","ok":false,"error":"unknown_command"}
+{"id":"e4b3f5a7-8c9d-4e0f-1a2b-3c4d5e6f7081","cmd":"dance","ok":false,"error":"unknown_command"}
 ```
+
+The pre-v1 `cmd/ping` with the payload `{}` carries no id and still gets `{"cmd":"ping","ok":true}`. The arguments, the errors and the rest are on [Control protocol](/devices/control-protocol#commands-cmdname-and-cmd_ack).
 
 ## Disconnecting cleanly
 
@@ -86,6 +106,10 @@ Port 8883, MQTT over TLS, at mqtt.paqett.com. Devices authenticate with their cl
 ### Do I need an MQTT username and password?
 
 No. The broker takes the MQTT username and client id from the common name of the device's certificate, whatever the client sends.
+
+### Which MQTT topics are retained?
+
+`status`, `describe`, `state`, `config` and `ota`. They hold the device's current condition: whether it is online, what it is, the config it runs, the config it should run, and any firmware offer. Telemetry, hello, commands and acknowledgements are not retained.
 
 ### What happens if a device publishes outside its own topic prefix?
 

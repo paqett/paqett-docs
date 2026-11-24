@@ -67,7 +67,9 @@ export const ENTITIES: Record<string, { name: string; sameAs: string }> = {
 	ecc: { name: 'Elliptic-curve cryptography', sameAs: 'https://en.wikipedia.org/wiki/Elliptic-curve_cryptography' },
 	ota: { name: 'Over-the-air update', sameAs: 'https://en.wikipedia.org/wiki/Over-the-air_update' },
 	'aws-iot': { name: 'AWS IoT Core', sameAs: 'https://en.wikipedia.org/wiki/Amazon_Web_Services' },
-	nvs: { name: 'Non-volatile storage', sameAs: 'https://en.wikipedia.org/wiki/Non-volatile_memory' }
+	nvs: { name: 'Non-volatile storage', sameAs: 'https://en.wikipedia.org/wiki/Non-volatile_memory' },
+	json: { name: 'JSON', sameAs: 'https://en.wikipedia.org/wiki/JSON' },
+	'digital-twin': { name: 'Digital twin', sameAs: 'https://en.wikipedia.org/wiki/Digital_twin' }
 };
 
 const raw = import.meta.glob<Record<string, unknown>>('/src/content/*/*.md', {

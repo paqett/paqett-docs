@@ -4,8 +4,8 @@
 	let { data } = $props();
 	const path = $derived(`/${data.section.id}`);
 	const titles: Record<string, string> = {
-		guides: 'Guides: ESP32 MQTT, mutual TLS and OTA',
-		devices: 'Device reference: provisioning, MQTT topics and OTA',
+		guides: 'Guides: ESP32 MQTT, mutual TLS, device shadow and OTA',
+		devices: 'Device reference: provisioning, MQTT topics, control protocol and OTA',
 		learn: 'Concepts: MQTT mutual TLS, device certificates and provisioning'
 	};
 	const title = $derived(titles[data.section.id] ?? data.section.label);

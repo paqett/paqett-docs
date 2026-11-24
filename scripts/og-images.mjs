@@ -27,8 +27,8 @@ const esc = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;');
 
 const pages = [
 	{ slug: 'home', kicker: 'Paqett docs', title: 'Connect a device. Keep it updated.' },
-	{ slug: 'guides', kicker: 'Paqett docs', title: 'Guides: ESP32 MQTT, mutual TLS and OTA' },
-	{ slug: 'devices', kicker: 'Paqett docs', title: 'Device reference: provisioning, MQTT topics and OTA' },
+	{ slug: 'guides', kicker: 'Paqett docs', title: 'Guides: ESP32 MQTT, mutual TLS, device shadow and OTA' },
+	{ slug: 'devices', kicker: 'Paqett docs', title: 'Device reference: provisioning, MQTT topics, control protocol and OTA' },
 	{ slug: 'learn', kicker: 'Paqett docs', title: 'Concepts: MQTT mutual TLS, device certificates and provisioning' }
 ];
 for (const section of Object.keys(SECTION)) {

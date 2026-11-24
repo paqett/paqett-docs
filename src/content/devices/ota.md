@@ -3,7 +3,7 @@ title: "OTA updates: offers, downloads, status and rollback"
 nav: "OTA updates"
 description: "The OTA contract for Paqett IP devices: the retained MQTT offer, the signed HTTPS image URL, the device's rules, ota_status reports, jobs and releases."
 tldr: "The platform publishes a retained QoS 1 offer on the device's ota topic with a job id, version, signed one-hour HTTPS URL, size and SHA-256. The device downloads into its spare slot, verifies size and digest, reboots on trial, confirms only after MQTT and hello, and reports each state on ota_status."
-order: 4
+order: 5
 updated: 2026-11-19
 keywords: [ota firmware update protocol, ota over mqtt, firmware rollback, signed download url firmware, iot ota job states]
 about: [ota, mqtt, esp32]

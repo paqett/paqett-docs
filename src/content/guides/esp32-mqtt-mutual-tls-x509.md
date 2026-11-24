@@ -308,7 +308,7 @@ The hello on `devices/<id>/hello` tells the platform what is running:
 
 `reset_reason` comes from `esp_reset_reason()`, and `rssi` and `ip` from the Wi-Fi interface.
 
-Commands arrive on `devices/<id>/cmd/<name>`. The device answers on `devices/<id>/cmd_ack` with `{"cmd":"ping","ok":true}`, or `ok: false` and an `error` for a command it doesn't know. `cmd_ack` sits outside `cmd/#` on purpose, so the device never hears its own acknowledgements.
+Commands arrive on `devices/<id>/cmd/<name>` with an `id`. The device answers on `devices/<id>/cmd_ack` with the same `id`, `ok` and a `result`, or `ok: false` and an `error` for a command it doesn't know. `cmd_ack` sits outside `cmd/#` on purpose, so the device never hears its own acknowledgements. To declare the device's settings, commands and metrics and take desired config, see [ESP32 device shadow over MQTT](/guides/esp32-device-shadow-config-commands).
 
 > **Note:** A graceful MQTT DISCONNECT suppresses the last will. When the SDK closes a session itself, it publishes the retained `{"online":false}` first and then stops the client.
 

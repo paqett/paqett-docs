@@ -3,7 +3,7 @@ title: "ESP32: generate an EC P-256 key and a CSR with mbedTLS"
 nav: "ESP32: generate a key and CSR"
 description: "Generate a CSR on an ESP32 with mbedTLS: seed CTR_DRBG, make an EC P-256 key, write key and CSR as PEM, keep both in NVS and verify the CSR with OpenSSL."
 tldr: "Start Wi-Fi so the ESP32 hardware RNG is truly random, seed mbedTLS CTR_DRBG from it, generate a SECP256R1 key with mbedtls_ecp_gen_key and write it with mbedtls_pk_write_key_pem. Build a SHA-256 PKCS#10 request with mbedtls_x509write_csr. The key PEM is 227 bytes, the CSR about 370. Keep both in NVS; send only the CSR."
-order: 3
+order: 4
 updated: 2026-11-19
 keywords: [esp32 generate csr, mbedtls generate csr, esp32 generate private key, mbedtls_x509write_csr example, esp32 ecdsa p-256 key, esp32 certificate signing request]
 about: [csr, mbedtls, esp32, ecc, x509, pki, nvs, esp-idf, arduino]
